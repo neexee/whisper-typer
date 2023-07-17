@@ -9,7 +9,7 @@ from threading import Thread
 import wave
 
 from pynput import keyboard
-from playaudio import playaudio
+from playsound import playsound
 from pvrecorder import PvRecorder
 import whisper
 
@@ -85,7 +85,7 @@ def record_speech(control_events: queue.Queue, play_sounds: bool):
 
     logger.info("Start recording")
     if play_sounds:
-        playaudio("on.wav")
+        playsound("on.wav")
 
     recorder.start()
     frames = []
@@ -96,7 +96,7 @@ def record_speech(control_events: queue.Queue, play_sounds: bool):
     recorder.stop()
 
     if play_sounds:
-        playaudio("off.wav")
+        playsound("off.wav")
     logger.info("Finish recording")
 
     return store_recording(frames)

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "whisper-typer"
-version = "0.1.0"
+version = "0.2.0"
 description = "Type with your voice"
 authors = ["Sergey Machulskis <sergeym@tuta.io>"]
 license = "MIT"
@@ -9,9 +9,9 @@ license = "MIT"
 python = "^3.11"
 pynput = "^1.7.6"
 pvrecorder = "^1.2.0"
-openai-whisper = "^20230314"
-torch = ">=2.0.0, !=2.0.1" # https://github.com/pytorch/pytorch/issues/100974
-playsound = "^1.3.0"
+openai-whisper = "^v20231117"
+torch = "^2.1.1" # https://github.com/pytorch/pytorch/issues/100974
+boombox = "^0.56"
 
 [tool.poetry.dev-dependencies]
 

@@ -8,11 +8,13 @@ from tempfile import NamedTemporaryFile
 from threading import Thread
 import wave
 
+from boombox import BoomBox
 from pynput import keyboard
-from playsound import playsound
 from pvrecorder import PvRecorder
 import whisper
 
+START_SOUND = BoomBox("./on.wav")
+STOP_SOUND = BoomBox("./off.wav")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 logger = logging.getLogger("whisper-typer")
@@ -24,9 +26,9 @@ def main():
     # Use "cpu" if cuda is not present on your machine
     device = "cuda"
     # Play sounds on recording start/stop
-    play_sounds = True
+    play_sounds = False
 
-    logger.info(f"Load {model_name} model")
+    logger.info(f"Loading {model_name} model, it might take some time...")
     model = whisper.load_model(model_name, device=device)
     logger.info(f"Loaded {model_name} model")
 
@@ -53,10 +55,13 @@ def recording_transcriber(model: whisper.Whisper, recordings: queue.Queue):
     while True:
         with next_recording(recordings) as recording:
             result = model.transcribe(recording)
-            logger.info(f"Transcribed {result['text']}")
+            text = str(result['text'])
 
-            with contextlib.suppress(Exception):
-                pykeyboard.type(f"{result['text']}")
+            logger.info(f"Transcribed {text}")
+
+            for s in text:
+                with contextlib.suppress(Exception):
+                    pykeyboard.type(s)
 
             # Alternatively, you print each element of the result
             # if you want to experiment wIth fUnny outpUts lOOKing lIke thIs.
@@ -81,11 +86,13 @@ def speech_recorder(
 
 
 def record_speech(control_events: queue.Queue, play_sounds: bool):
-    recorder = PvRecorder(frame_length=128)
+    devices = PvRecorder.get_available_devices()
+    logger.info(f"Using {devices[-1]} for recording")
+    recorder = PvRecorder(frame_length=128, device_index=len(devices)-1)
 
     logger.info("Start recording")
     if play_sounds:
-        playsound("on.wav")
+        START_SOUND.play()
 
     recorder.start()
     frames = []
@@ -96,7 +103,7 @@ def record_speech(control_events: queue.Queue, play_sounds: bool):
     recorder.stop()
 
     if play_sounds:
-        playsound("off.wav")
+        STOP_SOUND.play()
     logger.info("Finish recording")
 
     return store_recording(frames)

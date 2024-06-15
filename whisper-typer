@@ -149,7 +149,7 @@ def store_recording(frames: list):
 class RecordControlListener:
     def __init__(self, control_events: queue.Queue, recording_hotkey: str):
         self._recording_control_events = control_events
-        self._recording_toggle_combination = set(parse(recording_hotkey))
+        self._recording_toggle_combination = set(parse_hotkey(recording_hotkey))
         print(self._recording_toggle_combination)
         self._pressed_keys = set()
 
@@ -176,7 +176,7 @@ FUNCTION_KEYS = {
 }
 
 
-def parse(keys):
+def parse_hotkey(keys: str):
     """Parses a key combination string.
 
     Key combination strings are sequences of key identifiers separated by

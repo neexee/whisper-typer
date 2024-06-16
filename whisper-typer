@@ -53,8 +53,8 @@ def parse_args():
     parser.add_argument(
         "--recording-device-index",
         type=int,
-        default=-1,
-        help="Index of the recording device to use (default: -1 for last device)",
+        default=len(PvRecorder.get_available_devices())-1,
+        help="Index of the recording device to use (default: the last device)",
     )
     return parser.parse_args()
 
@@ -62,14 +62,14 @@ def parse_args():
 def main():
     args = parse_args()
 
+    rec_devices = PvRecorder.get_available_devices()
     if args.list_recording_devices:
-        devices = PvRecorder.get_available_devices()
         print("Available recording devices:")
-        for i, device in enumerate(devices):
+        for i, device in enumerate(rec_devices):
             print(f"{i}: {device}")
         return
-    logger.info(f"Using {PvRecorder.get_available_devices()[args.recording_device_index]} for recording")
 
+    logger.info(f"Using {rec_devices[args.recording_device_index]} for recording")
     logger.info(f"Loading {args.model} model, it might take some time...")
     model = whisper.load_model(args.model, device=args.device)
     logger.info(f"Loaded {args.model} model")

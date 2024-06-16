@@ -27,7 +27,8 @@ def parse_args():
         "--recording-hotkey",
         type=str,
         default="<f8>",
-        help="A hotkey to start/stop recording. Use brackets <> for special keys, combine keys using +.",
+        help="A hotkey to start/stop recording. "
+        "Use brackets <> for special keys, combine keys using + (default: <f8>)",
     )
     parser.add_argument(
         "--device",

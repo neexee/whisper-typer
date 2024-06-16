@@ -5,14 +5,14 @@ import logging
 import os
 import queue
 import struct
+import wave
 from tempfile import NamedTemporaryFile
 from threading import Thread
-import wave
 
-from boombox import BoomBox
-from pynput import keyboard
-from pvrecorder import PvRecorder
 import whisper
+from boombox import BoomBox
+from pvrecorder import PvRecorder
+from pynput import keyboard
 
 START_SOUND = BoomBox("./on.wav")
 STOP_SOUND = BoomBox("./off.wav")
@@ -24,23 +24,37 @@ logger = logging.getLogger("whisper-typer")
 def parse_args():
     parser = argparse.ArgumentParser(description="Record speech and convert it to text")
     parser.add_argument(
-        "--recording-hotkey", type=str, default="<f8>",
-        help="A hotkey to start/stop recording. Use brackets <> for special keys.")
+        "--recording-hotkey",
+        type=str,
+        default="<f8>",
+        help="A hotkey to start/stop recording. Use brackets <> for special keys.",
+    )
     parser.add_argument(
-        "--device", type=str, default="cuda", choices=["cuda", "cpu"],
-        help="Device to run the model on (default: cuda)")
+        "--device",
+        type=str,
+        default="cuda",
+        choices=["cuda", "cpu"],
+        help="Device to run the model on (default: cuda)",
+    )
     parser.add_argument(
-        "--model", type=str, default="medium", choices=whisper.available_models(),
-        help="Whisper model to use (default: medium)")
+        "--model",
+        type=str,
+        default="medium",
+        choices=whisper.available_models(),
+        help="Whisper model to use (default: medium)",
+    )
+    parser.add_argument("--play-sounds", action="store_true", help="Play sounds on recording start/stop")
     parser.add_argument(
-        "--play-sounds", action="store_true",
-        help="Play sounds on recording start/stop")
+        "--list-recording-devices",
+        action="store_true",
+        help="List recording devices and exit",
+    )
     parser.add_argument(
-        "--list-recording-devices", action="store_true",
-        help="List recording devices and exit")
-    parser.add_argument(
-        "--recording-device-index", type=int, default=-1,
-        help="Index of the recording device to use (default: -1 for last device)")
+        "--recording-device-index",
+        type=int,
+        default=-1,
+        help="Index of the recording device to use (default: -1 for last device)",
+    )
     return parser.parse_args()
 
 
@@ -66,7 +80,14 @@ def main():
     transcriber.start()
 
     recorder = Thread(
-        target=speech_recorder, args=(recordings, control_events, args.play_sounds, args.recording_device_index))
+        target=speech_recorder,
+        args=(
+            recordings,
+            control_events,
+            args.play_sounds,
+            args.recording_device_index,
+        ),
+    )
     recorder.start()
 
     rl = RecordControlListener(control_events, args.recording_hotkey)
@@ -82,7 +103,7 @@ def recording_transcriber(model: whisper.Whisper, recordings: queue.Queue):
     while True:
         with next_recording(recordings) as recording:
             result = model.transcribe(recording)
-            text = str(result['text'])
+            text = str(result["text"])
 
             logger.info(f"Transcribed {text}")
 
@@ -105,7 +126,11 @@ def next_recording(recordings: queue.Queue):
 
 
 def speech_recorder(
-        recordings: queue.Queue, control_events: queue.Queue, play_sounds: bool, device_index: int):
+    recordings: queue.Queue,
+    control_events: queue.Queue,
+    play_sounds: bool,
+    device_index: int,
+):
     while True:
         control_events.get(block=True)
         recording_path = record_speech(control_events, play_sounds, device_index)
@@ -150,19 +175,16 @@ class RecordControlListener:
     def __init__(self, control_events: queue.Queue, recording_hotkey: str):
         self._recording_control_events = control_events
         self._recording_toggle_combination = set(parse_hotkey(recording_hotkey))
-        print(self._recording_toggle_combination)
-        self._pressed_keys = set()
+        self._pressed_keys: set[keyboard.Key | keyboard.KeyCode] = set()
 
     def on_press(self, key):
-        print(key)
         if key in self._recording_toggle_combination:
             self._pressed_keys.add(key)
         else:
             self._pressed_keys.clear()
 
     def on_release(self, key):
-        if (self._pressed_keys == self._recording_toggle_combination
-                and key in self._pressed_keys):
+        if self._pressed_keys == self._recording_toggle_combination and key in self._pressed_keys:
             self._pressed_keys.remove(key)
             if not self._pressed_keys:
                 with contextlib.suppress(queue.Full):
@@ -171,9 +193,7 @@ class RecordControlListener:
 
 # This is a fix for https://github.com/moses-palmer/pynput/issues/439
 # In short, hotkeys involving f keys don't work out of the box with pynput.
-FUNCTION_KEYS = {
-    f"f{num}": getattr(keyboard.Key, f"f{num}") for num in range(1, 13)
-}
+FUNCTION_KEYS = {f"f{num}": getattr(keyboard.Key, f"f{num}") for num in range(1, 13)}
 
 
 def parse_hotkey(keys: str):
@@ -189,10 +209,11 @@ def parse_hotkey(keys: str):
     :raises ValueError: if a part of the keys string is invalid, or if it
         contains multiple equal parts
     """
+
     def parts():
         start = 0
         for i, c in enumerate(keys):
-            if c == '+' and i != start:
+            if c == "+" and i != start:
                 yield keys[start:i]
                 start = i + 1
         if start == len(keys):
@@ -203,7 +224,7 @@ def parse_hotkey(keys: str):
     def parse(s):
         if len(s) == 1:
             return keyboard.KeyCode.from_char(s.lower())
-        elif len(s) > 2 and (s[0], s[-1]) == ('<', '>'):
+        elif len(s) > 2 and (s[0], s[-1]) == ("<", ">"):
             p = s[1:-1]
             if p in FUNCTION_KEYS:
                 return FUNCTION_KEYS[p]
@@ -225,9 +246,7 @@ def parse_hotkey(keys: str):
 
     # Split the string and parse the individual parts
     raw_parts = list(parts())
-    parsed_parts = [
-        parse(s)
-        for s in raw_parts]
+    parsed_parts = [parse(s) for s in raw_parts]
 
     # Ensure no duplicate parts
     if len(parsed_parts) != len(set(parsed_parts)):

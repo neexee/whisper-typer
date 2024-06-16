@@ -177,13 +177,13 @@ class RecordControlListener:
         self._recording_toggle_combination = set(parse_hotkey(recording_hotkey))
         self._pressed_keys: set[keyboard.Key | keyboard.KeyCode] = set()
 
-    def on_press(self, key):
+    def on_press(self, key: keyboard.Key | keyboard.KeyCode):
         if key in self._recording_toggle_combination:
             self._pressed_keys.add(key)
         else:
             self._pressed_keys.clear()
 
-    def on_release(self, key):
+    def on_release(self, key: keyboard.Key | keyboard.KeyCode):
         if self._pressed_keys == self._recording_toggle_combination and key in self._pressed_keys:
             self._pressed_keys.remove(key)
             if not self._pressed_keys:
@@ -210,49 +210,37 @@ def parse_hotkey(keys: str):
         contains multiple equal parts
     """
 
-    def parts():
-        start = 0
-        for i, c in enumerate(keys):
-            if c == "+" and i != start:
-                yield keys[start:i]
-                start = i + 1
-        if start == len(keys):
-            raise ValueError(keys)
-        else:
-            yield keys[start:]
+    def parse_part(part: str):
+        if len(part) == 1:
+            return keyboard.KeyCode.from_char(part.lower())
 
-    def parse(s):
-        if len(s) == 1:
-            return keyboard.KeyCode.from_char(s.lower())
-        elif len(s) > 2 and (s[0], s[-1]) == ("<", ">"):
-            p = s[1:-1]
-            if p in FUNCTION_KEYS:
-                return FUNCTION_KEYS[p]
-            try:
-                # We want to represent modifiers as Key instances, and all
-                # other keys as KeyCodes
-                key = keyboard.Key[p.lower()]
-                if key in keyboard._NORMAL_MODIFIERS.values():
-                    return key
-                else:
-                    return keyboard.KeyCode.from_vk(key.value.vk)
-            except KeyError:
-                try:
-                    return keyboard.KeyCode.from_vk(int(p))
-                except ValueError:
-                    raise ValueError(s)
-        else:
-            raise ValueError(s)
+        if part in ["<>", ""] or (part[0], part[-1]) != ("<", ">"):
+            raise ValueError(f"Invalid key combination part: '{part}'")
+
+        p = part[1:-1]
+        if p in FUNCTION_KEYS:
+            return FUNCTION_KEYS[p]
+
+        # We want to represent modifiers as Key instances, and all
+        # other keys as KeyCodes
+        try:
+            key = keyboard.Key[p.lower()]
+        except KeyError:
+            return keyboard.KeyCode.from_vk(int(p))
+
+        if key in keyboard._NORMAL_MODIFIERS.values():
+            return key
+        return keyboard.KeyCode.from_vk(key.value.vk)
 
     # Split the string and parse the individual parts
-    raw_parts = list(parts())
-    parsed_parts = [parse(s) for s in raw_parts]
+    raw_parts = list(keys.split("+"))
+    parsed_parts = [parse_part(s) for s in raw_parts]
 
     # Ensure no duplicate parts
     if len(parsed_parts) != len(set(parsed_parts)):
-        raise ValueError(keys)
-    else:
-        return parsed_parts
+        raise ValueError(f"Duplicate keys: {keys}")
+
+    return parsed_parts
 
 
 if __name__ == "__main__":
